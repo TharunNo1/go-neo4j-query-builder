@@ -49,7 +49,6 @@ func main() {
 	// Generate the Cypher query
 	cypherQuery, err := querybuilder.BuildCypher(queryData)
 	if err != nil {
-		fmt.Println("Error building Cypher query:", err)
 		return
 	}
 
