@@ -22,7 +22,11 @@ func BuildCypher(q MiniQuery) (string, error) {
 	// Build relationship path with unique variable names
 	for i, r := range q.Relationships {
 		nextVar := fmt.Sprintf("f%d", i+1)
-		matchClause += fmt.Sprintf("-[:%s]->(%s:%s)", r.Type, nextVar, r.To)
+		types := strings.Split(r.Type, "|")
+		for i, t := range types {
+			types[i] = ":" + t
+		}
+		matchClause += fmt.Sprintf("-[%s]->(%s:%s)", strings.Join(types, "|"), nextVar, r.To)
 	}
 
 	// Add WHERE clause if present
@@ -43,7 +47,7 @@ func BuildCypher(q MiniQuery) (string, error) {
 				for i := range q.Relationships {
 					nextVar := fmt.Sprintf("f%d", i+1)
 					// If the key matches a relationship node (f1, f2,...), build the condition
-					if nextVar == k {
+					if strings.HasPrefix(k, nextVar) {
 						switch val := v.(type) {
 						case string:
 							whereParts = append(whereParts, fmt.Sprintf("%s.%s = '%s'", nextVar, strings.Split(k, ".")[1], val))
@@ -77,82 +81,6 @@ func BuildCypher(q MiniQuery) (string, error) {
 		// Join the conditions with AND
 		matchClause += fmt.Sprintf(" WHERE %s", strings.Join(whereParts, " AND "))
 	}
-
-	// if len(q.Where) > 0 {
-	// 	var whereParts []string
-	// 	for k, v := range q.Where {
-	// 		// Check if the key starts with "f" to indicate a relationship node
-	// 		if strings.HasPrefix(k, "f") {
-	// 			for i := range q.Relationships {
-	// 				nextVar := fmt.Sprintf("f%d", i+1)
-	// 				if nextVar == k {
-	// 					switch val := v.(type) {
-	// 					case string:
-	// 						whereParts = append(whereParts, fmt.Sprintf("%s.%s = '%s'", nextVar, k, val))
-	// 					case []interface{}:
-	// 						var orConditions []string
-	// 						for _, item := range val {
-	// 							orConditions = append(orConditions, fmt.Sprintf("%s.%s = '%v'", nextVar, k, item))
-	// 						}
-	// 						whereParts = append(whereParts, "("+strings.Join(orConditions, " OR ")+")")
-	// 					default:
-	// 						whereParts = append(whereParts, fmt.Sprintf("%s.%s = %v", nextVar, k, v))
-	// 					}
-	// 				}
-	// 			}
-	// 		} else {
-	// 			// For the root node "p", handle conditions as usual
-	// 			switch val := v.(type) {
-	// 			case string:
-	// 				whereParts = append(whereParts, fmt.Sprintf("p.%s = '%s'", k, val))
-	// 			case []interface{}:
-	// 				var orConditions []string
-	// 				for _, item := range val {
-	// 					orConditions = append(orConditions, fmt.Sprintf("p.%s = '%v'", k, item))
-	// 				}
-	// 				whereParts = append(whereParts, "("+strings.Join(orConditions, " OR ")+")")
-	// 			default:
-	// 				whereParts = append(whereParts, fmt.Sprintf("p.%s = %v", k, v))
-	// 			}
-	// 		}
-	// 	}
-	// 	matchClause += fmt.Sprintf(" WHERE %s", strings.Join(whereParts, " AND "))
-	// }
-
-	// if len(q.Where) > 0 {
-	// 	var whereParts []string
-	// 	for k, v := range q.Where {
-	// 		switch val := v.(type) {
-	// 		case string:
-	// 			// If it's a single string, create the condition as usual
-	// 			whereParts = append(whereParts, fmt.Sprintf("p.%s = '%s'", k, val))
-	// 		case []interface{}:
-	// 			// If it's an array (multiple values), create OR conditions
-	// 			var orConditions []string
-	// 			for _, item := range val {
-	// 				orConditions = append(orConditions, fmt.Sprintf("p.%s = '%v'", k, item))
-	// 			}
-	// 			whereParts = append(whereParts, "("+strings.Join(orConditions, " OR ")+")")
-	// 		default:
-	// 			// For other types, just create a condition
-	// 			whereParts = append(whereParts, fmt.Sprintf("p.%s = %v", k, v))
-	// 		}
-	// 	}
-	// 	matchClause += fmt.Sprintf(" WHERE %s", strings.Join(whereParts, " AND "))
-	// }
-
-	// if len(q.Where) > 0 {
-	// 	var whereParts []string
-	// 	for k, v := range q.Where {
-	// 		switch val := v.(type) {
-	// 		case string:
-	// 			whereParts = append(whereParts, fmt.Sprintf("p.%s = '%s'", k, val))
-	// 		default:
-	// 			whereParts = append(whereParts, fmt.Sprintf("p.%s = %v", k, v))
-	// 		}
-	// 	}
-	// 	matchClause += fmt.Sprintf(" WHERE %s", strings.Join(whereParts, " AND "))
-	// }
 
 	// Add the MATCH clause
 	queryParts = append(queryParts, matchClause)
