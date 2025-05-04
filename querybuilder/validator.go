@@ -18,7 +18,7 @@ func ValidateQuery(q MiniQuery) error {
 	// Validate relationships
 	for _, r := range q.Relationships {
 		if r.Type == "" || r.To == "" {
-			return errors.New("invalid relationship type or target node")
+			return errors.New("missing relationship type or target node")
 		}
 	}
 
