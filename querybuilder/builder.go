@@ -12,48 +12,46 @@ func BuildCypher(q MiniQuery) (string, error) {
 		return "", err
 	}
 
-	// Step 2: Generate Cypher query after validation
+	// Step 2: Start constructing the Cypher query
 	var queryParts []string
 
-	// MATCH Clause (start with node)
+	// Start MATCH clause with the root node
 	matchClause := fmt.Sprintf("MATCH (p:%s)", q.From)
 
-	// Relationships Clause (if present)
-	if len(q.Relationships) > 0 {
-		var relationshipClauses []string
-		for _, r := range q.Relationships {
-			relationshipClauses = append(relationshipClauses, fmt.Sprintf("-[:%s]->(f:%s)", r.Type, r.To))
+	// Build relationship path with unique variable names
+	for i, r := range q.Relationships {
+		nextVar := fmt.Sprintf("f%d", i+1)
+		matchClause += fmt.Sprintf("-[:%s]->(%s:%s)", r.Type, nextVar, r.To)
+	}
+
+	// Add WHERE clause if present
+	if len(q.Where) > 0 {
+		var whereParts []string
+		for k, v := range q.Where {
+			switch val := v.(type) {
+			case string:
+				whereParts = append(whereParts, fmt.Sprintf("p.%s = '%s'", k, val))
+			default:
+				whereParts = append(whereParts, fmt.Sprintf("p.%s = %v", k, v))
+			}
 		}
-		matchClause = fmt.Sprintf("%s %s", matchClause, strings.Join(relationshipClauses, ""))
+		matchClause += fmt.Sprintf(" WHERE %s", strings.Join(whereParts, " AND "))
 	}
 
-	// WHERE Clause (if present) - AFTER the MATCH and RELATIONSHIPS clauses
-	var whereParts []string
-	for k, v := range q.Where {
-		if str, ok := v.(string); ok {
-			whereParts = append(whereParts, fmt.Sprintf("p.%s = '%s'", k, str))
-		} else {
-			whereParts = append(whereParts, fmt.Sprintf("p.%s = %v", k, v))
-		}
-	}
-
-	if len(whereParts) > 0 {
-		matchClause = fmt.Sprintf("%s WHERE %s", matchClause, strings.Join(whereParts, " AND "))
-	}
-
-	// Add the MATCH clause (with relationships and WHERE)
+	// Add the MATCH clause
 	queryParts = append(queryParts, matchClause)
 
-	// RETURN Clause (if present) - Ensure that both p.name and f.name are included
+	// Handle RETURN clause
 	if len(q.Return) > 0 {
-		// Join the fields in Return, ensure both p and f fields are correctly included
-		returnFields := strings.Join(q.Return, ", ")
-		queryParts = append(queryParts, fmt.Sprintf("RETURN %s", returnFields))
+		queryParts = append(queryParts, fmt.Sprintf("RETURN %s", strings.Join(q.Return, ", ")))
 	} else {
-		// Default to returning the nodes and their properties if no explicit fields in Return
-		queryParts = append(queryParts, "RETURN p, f")
+		// Auto-generate default return fields
+		returnFields := []string{"p"}
+		for i := range q.Relationships {
+			returnFields = append(returnFields, fmt.Sprintf("f%d", i+1))
+		}
+		queryParts = append(queryParts, fmt.Sprintf("RETURN %s", strings.Join(returnFields, ", ")))
 	}
 
-	// Return the final Cypher query
 	return strings.Join(queryParts, " "), nil
 }

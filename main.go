@@ -54,6 +54,5 @@ func main() {
 	}
 
 	// Print the generated Cypher query
-	fmt.Println("Generated Cypher Query:")
 	fmt.Println(cypherQuery)
 }
